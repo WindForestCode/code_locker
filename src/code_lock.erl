@@ -20,7 +20,7 @@ set_lock_button(LockButton) ->
 
 init({Code,LockButton}) ->
     process_flag(trap_exit, true),
-    Data = #{code => Code, length => length(Code), buttons => []},
+    Data = #{code => Code, length => length(Code), buttons => [], triesCounter => 0},
     {ok, {locked,LockButton}, Data}.
 
 callback_mode() ->
@@ -34,7 +34,7 @@ handle_event(state_timeout, button, {locked,_}, Data) ->
     {keep_state, Data#{buttons := []}};
 handle_event(
   cast, {button,Button}, {locked,LockButton},
-  #{code := Code, length := Length, buttons := Buttons} = Data) ->
+  #{code := Code, length := Length, buttons := Buttons, triesCounter := TriesCounter} = Data) ->
     NewButtons =
         if
             length(Buttons) < Length ->
@@ -42,12 +42,21 @@ handle_event(
             true ->
                 tl(Buttons)
         end ++ [Button],
-    if
-        NewButtons =:= Code -> % Correct
-            {next_state, {open,LockButton}, Data};
-	true -> % Incomplete | Incorrect
+
+    case length(NewButtons) of
+        Length ->
+            case NewButtons =:= Code of 
+                true -> % Correct
+                    {next_state, {open,LockButton}, Data#{triesCounter := 0}};
+                false -> % Incorrect
+                    NewTries = TriesCounter + 1,
+                    io:format("Wrong password, tries:~p~n", [NewTries]),
+                    {keep_state, Data#{buttons := [], triesCounter := NewTries}, 
+                    [{state_timeout, 30_000, button}]} % Time in milliseconds
+                end;
+        _ ->
             {keep_state, Data#{buttons := NewButtons},
-             [{state_timeout,30_000,button}]} % Time in milliseconds
+            [{state_timeout,30_000,button}]}
     end;
 %%
 %% State: open
@@ -61,6 +70,10 @@ handle_event(cast, {button,LockButton}, {open,LockButton}, Data) ->
     {next_state, {locked,LockButton}, Data};
 handle_event(cast, {button,_}, {open,_}, _Data) ->
     {keep_state_and_data,[postpone]};
+%%
+%% State: suspended
+
+
 %%
 %% Common events
 handle_event(

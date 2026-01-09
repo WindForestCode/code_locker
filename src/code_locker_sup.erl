@@ -31,7 +31,7 @@ init([]) ->
                  period => 1},
     ChildSpecs = [#{
         id => code_lock,
-        start => {code_lock, start_link, []},
+        start => {code_lock, start_link, [[1, 2, 3], r]},
         restart => permanent,
         type => worker
     }],

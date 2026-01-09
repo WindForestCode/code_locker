@@ -1,6 +1,6 @@
 -module(code_lock).
 -behaviour(gen_statem).
--define(NAME, code_lock_3).
+-define(NAME, code_lock).
 
 -export([start_link/2,stop/0]).
 -export([button/1,set_lock_button/1]).

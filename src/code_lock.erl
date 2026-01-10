@@ -1,6 +1,7 @@
 -module(code_lock).
 -behaviour(gen_statem).
 -define(NAME, code_lock).
+-define(TRIES_TO_SUSPEND, 3).
 
 -export([start_link/2,stop/0]).
 -export([button/1,set_lock_button/1]).
@@ -30,8 +31,10 @@ callback_mode() ->
 handle_event(enter, _OldState, {locked,_}, Data) ->
     do_lock(),
     {keep_state, Data#{buttons := []}};
+
 handle_event(state_timeout, button, {locked,_}, Data) ->
     {keep_state, Data#{buttons := []}};
+
 handle_event(
   cast, {button,Button}, {locked,LockButton},
   #{code := Code, length := Length, buttons := Buttons, triesCounter := TriesCounter} = Data) ->
@@ -51,28 +54,48 @@ handle_event(
                 false -> % Incorrect
                     NewTries = TriesCounter + 1,
                     io:format("Wrong password, tries:~p~n", [NewTries]),
-                    {keep_state, Data#{buttons := [], triesCounter := NewTries}, 
-                    [{state_timeout, 30_000, button}]} % Time in milliseconds
+                    case NewTries of
+                        ?TRIES_TO_SUSPEND -> 
+                            {next_state, {suspended,LockButton}, Data};
+                        _ -> 
+                            {keep_state, Data#{buttons := [], triesCounter := NewTries}, 
+                            [{state_timeout, 30_000, button}]} % Time in milliseconds
+                    end    
                 end;
         _ ->
             {keep_state, Data#{buttons := NewButtons},
             [{state_timeout,30_000,button}]}
     end;
+
+
 %%
 %% State: open
 handle_event(enter, _OldState, {open,_}, _Data) ->
     do_unlock(),
     {keep_state_and_data,
      [{state_timeout,10_000,lock}]}; % Time in milliseconds
+
 handle_event(state_timeout, lock, {open,LockButton}, Data) ->
     {next_state, {locked,LockButton}, Data};
+
 handle_event(cast, {button,LockButton}, {open,LockButton}, Data) ->
     {next_state, {locked,LockButton}, Data};
+
 handle_event(cast, {button,_}, {open,_}, _Data) ->
     {keep_state_and_data,[postpone]};
+
 %%
 %% State: suspended
+handle_event(enter, _OldState, {suspended, _}, _Data) ->
+    do_suspend(),
+    {keep_state_and_data, [{state_timeout, 10_000, lock}]}; % Time in milliseconds
 
+handle_event(state_timeout, lock, {suspended,LockButton}, Data) ->
+    {next_state, {locked,LockButton}, Data#{buttons := [], triesCounter := 0}};
+
+handle_event(cast, {button,_}, {suspended,_}, Data) ->
+    do_suspend(),
+    {keep_state, Data};
 
 %%
 %% Common events
@@ -81,10 +104,15 @@ handle_event(
   {StateName,OldLockButton}, Data) ->
     {next_state, {StateName,NewLockButton}, Data,
      [{reply,From,OldLockButton}]}.
+
 do_lock() ->
     io:format("Locked~n", []).
+
 do_unlock() ->
     io:format("Open~n", []).
+
+do_suspend() ->
+    io:format("Suspended~n", []).
 
 terminate(_Reason, State, _Data) ->
     State =/= locked andalso do_lock(),

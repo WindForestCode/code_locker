@@ -2,6 +2,7 @@
 -behaviour(gen_statem).
 -define(NAME, code_lock).
 -define(TRIES_TO_SUSPEND, 3).
+-define(CODE_LENGTH, 3).
 
 -export([start_link/2,stop/0]).
 -export([button/1,set_lock_button/1]).
@@ -21,7 +22,7 @@ set_lock_button(LockButton) ->
 
 init({Code,LockButton}) ->
     process_flag(trap_exit, true),
-    Data = #{code => Code, length => length(Code), buttons => [], triesCounter => 0},
+    Data = #{code => Code, length => ?CODE_LENGTH, buttons => [], triesCounter => 0},
     {ok, {locked,LockButton}, Data}.
 
 callback_mode() ->

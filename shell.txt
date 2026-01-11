@@ -1,0 +1,68 @@
+3> moon@linux:~/Desktop/erlang/10/code_locker$ rebar3 compile 
+===> Verifying dependencies...
+===> Analyzing applications...
+===> Compiling code_locker
+
+moon@linux:~/Desktop/erlang/10/code_locker$ rebar3 shell
+===> Verifying dependencies...
+===> Analyzing applications...
+===> Compiling code_locker
+Erlang/OTP 25 [erts-13.2.2.5] [source] [64-bit] [smp:4:4] [ds:4:4:10] [async-threads:1] [jit:ns]
+
+Eshell V13.2.2.5  (abort with ^G)
+1> Locked
+===> Booted code_locker
+
+%% ПРОВЕРКА ВВОДА ВЕРНОГО ПАРОЛЯ
+1> code_lock:button(1).
+ok
+2> code_lock:button(2).
+ok
+3> code_lock:button(3).
+ok
+4> Open
+
+%% УСТАНОВКА НОВОГО ПАРОЛЯ В STATE OPEN
+4> code_lock:button(1).
+ok
+5> code_lock:button(1).
+ok
+6> code_lock:button(1).
+New code set:[1,1,1]
+ok
+7> Locked % Переход в state locked после таймаута
+
+%% Проверка блокировки после 3 неправильных попыток
+7> code_lock:button(1).
+ok
+8> code_lock:button(2).
+ok
+9> code_lock:button(3).
+%% Вывод сообщения о неправильной попытке
+Wrong password, tries:1
+ok
+10> code_lock:button(1).
+ok
+11> code_lock:button(3).
+ok
+12> code_lock:button(3).
+Wrong password, tries:2
+ok
+13> code_lock:button(1).
+ok
+14> code_lock:button(3).
+ok
+15> code_lock:button(1).
+Wrong password, tries:3
+ok
+%% Приостановка
+Suspended
+%% Реакция на ввод кнопок в state suspended
+16> code_lock:button(1).
+Suspended
+ok
+%% Переход в state locked
+17> Locked
+
+
+

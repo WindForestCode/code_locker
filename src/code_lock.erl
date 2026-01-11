@@ -51,7 +51,7 @@ handle_event(
         Length ->
             case NewButtons =:= Code of 
                 true -> % Correct
-                    {next_state, {open,LockButton}, Data#{triesCounter := 0}};
+                    {next_state, {open,LockButton}, Data#{buttons := [], triesCounter := 0}};
                 false -> % Incorrect
                     NewTries = TriesCounter + 1,
                     io:format("Wrong password, tries:~p~n", [NewTries]),
@@ -82,8 +82,22 @@ handle_event(state_timeout, lock, {open,LockButton}, Data) ->
 handle_event(cast, {button,LockButton}, {open,LockButton}, Data) ->
     {next_state, {locked,LockButton}, Data};
 
-handle_event(cast, {button,_}, {open,_}, _Data) ->
-    {keep_state_and_data,[postpone]};
+handle_event(cast, {button, Button}, {open,_},  
+    #{length := Length, buttons := Buttons} = Data) ->
+        
+        NewButtons =
+        if
+            length(Buttons) < Length ->
+                Buttons
+        end ++ [Button],
+        
+        case length(NewButtons) =:= Length of
+            true ->
+                new_code(NewButtons),
+                {keep_state, Data#{code := NewButtons, buttons := []}};
+            false ->
+                {keep_state, Data#{buttons := NewButtons}}
+        end;
 
 %%
 %% State: suspended
@@ -114,6 +128,9 @@ do_unlock() ->
 
 do_suspend() ->
     io:format("Suspended~n", []).
+
+new_code(NewCode) ->
+    io:format("New code set:~p~n", [NewCode]).
 
 terminate(_Reason, State, _Data) ->
     State =/= locked andalso do_lock(),
